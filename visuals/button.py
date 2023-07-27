@@ -8,7 +8,8 @@ class Button(Sprite):
 
     def __init__(self, game_settings: Settings, screen: pygame.surface.Surface,
                  actual_image: str = '0', image_name: str = 'default',
-                 hover_image_name: str = 'hover_default', x: int = 0, y: int = 0):
+                 hover_image_name: str = 'hover_default', x_pos: int = 0, y_pos: int = 0,
+                 x: int = 0, y: int = 0):
         """Init button and set its pos"""
         super(Button, self).__init__()
         self.screen = screen
@@ -27,6 +28,7 @@ class Button(Sprite):
         # Button start pos
         self.rect.x = x
         self.rect.y = y
+        self.coords = (x_pos, y_pos)
 
     def blit_me(self) -> None:
         """Малювання кнопки"""
@@ -57,9 +59,12 @@ class Button(Sprite):
             self.is_hover = False
             self.image = pygame.image.load(f'images/{self.image_name}.png').convert()
 
-    def on_click(self) -> None:
+    def on_click(self, image: str) -> None:
         """
             Метод, що змінює зображення кнопки після натиснення
         """
-        self.change_image(self.actual_image)
+        self.change_image(image)
         self.is_revealed = True
+
+    def get_coords(self) -> list:
+        return self.coords

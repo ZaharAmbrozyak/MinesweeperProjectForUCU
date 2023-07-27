@@ -4,12 +4,14 @@ import pygame
 class Settings:
     """Settings class"""
 
-    def __init__(self) -> None:
+    def __init__(self, x: int, y: int, button_w: int = 64, button_h: int = 64,
+                 extra_x: int = 22, extra_y: int = 128) -> None:
         """Init the game settings"""
         # Screen settings
+        self.game_active = True
         info = pygame.display.Info()
-        self.screen_width = info.current_w
-        self.screen_height = info.current_h
+        self.screen_width = x * button_w + extra_x
+        self.screen_height = y * button_h + extra_y
         self.bg_color = '#139917'
 
         # Sounds
