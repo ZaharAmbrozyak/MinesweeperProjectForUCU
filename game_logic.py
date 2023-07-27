@@ -1,8 +1,8 @@
 import random
 import numpy as np
 
-UNEXPLORED = 'X'
-FLAG = 'F'
+UNEXPLORED = 'default'
+FLAG = 'flag'
 EMPTY = 'E'
 MINE = 'M'
 
@@ -20,7 +20,7 @@ class Game:
         self.flag_poses = []
         self.unexplored_poses = [(x, y) for x in range(self.size[0]) for y in range(self.size[1])]
 
-    def setup(self, first_click_pos: tuple) -> None:
+    def setup(self, first_click_pos: tuple = (0, 0)) -> None:
         self.game_board = self.generate_board(first_click_pos)
         self.nums_board = self.generate_neighbors_board()
 
@@ -29,9 +29,11 @@ class Game:
         available_pos_for_mines = [(x, y) for x in range(self.size[0]) for y in range(self.size[1])]
         first_positions = [(x, y)
                            for x in
-                           range(first_click_pos[0] - (self.size[0] + 2) // 3, first_click_pos[0] + (self.size[0] + 2) // 3)
+                           range(first_click_pos[0] - (self.size[0] + 3) // 4,
+                                 first_click_pos[0] + (self.size[0] + 3) // 4)
                            for y in
-                           range(first_click_pos[1] - (self.size[1] + 2) // 3, first_click_pos[1] + (self.size[1] + 2) // 3)]
+                           range(first_click_pos[1] - (self.size[1] + 3) // 4,
+                                 first_click_pos[1] + (self.size[1] + 3) // 4)]
 
         available_pos_for_mines = [pos for pos in available_pos_for_mines if pos not in first_positions]
         mines_to_be_placed = self.num_of_mines
@@ -86,10 +88,11 @@ class Game:
                     continue
                 if self.player_board[i, j] == UNEXPLORED:
                     self.player_board[i, j] = self.nums_board[i, j]
+                    self.unexplored_poses.remove((i, j))
                     self.expand_empty_cells((i, j))
 
     def num_of_left_mines(self) -> int:
-        return np.count_nonzero(self.game_board == 'M')
+        return np.count_nonzero(self.game_board == MINE)
 
     def reveal_player_board(self) -> None:
         for x, row in enumerate(self.game_board):
@@ -100,19 +103,20 @@ class Game:
                 self.player_board[x, y] = self.nums_board[x, y]
         self.print_board(self.player_board)
 
-    def do_action(self) -> None:
-        cell_choice = tuple(
-            [int(coord) - 1 for coord in input("What cell to choose?(x, y) ").replace(' ', '').split(',')])
-        action = input("What do you want to do?[open(o)/flag(f)/remove flag(r)] ")
+    def do_action(self, cell_choice: tuple, action: str) -> None:
+        # cell_choice = tuple(
+        #     [int(coord) - 1 for coord in input("What cell to choose?(x, y) ").replace(' ', '').split(',')])
+        # action = input("What do you want to do?[open(o)/flag(f)/remove flag(r)] ")
         if self.first_click:
             self.setup(cell_choice)
             self.first_click = False
+
         if action == 'o':
             if self.game_board[cell_choice[0], cell_choice[1]] == MINE:
-                print("You lost!")
+                # print("You lost!")
                 self.end_game = True
             elif self.player_board[cell_choice[0], cell_choice[1]] == UNEXPLORED:
-                print("Cell opened")
+                # print("Cell opened")
                 num_of_near_mines = self.nums_board[cell_choice[0], cell_choice[1]]
                 self.player_board[cell_choice[0], cell_choice[1]] = num_of_near_mines
                 self.expand_empty_cells(cell_choice)
@@ -123,31 +127,21 @@ class Game:
         elif action == 'r' and self.player_board[cell_choice[0], cell_choice[1]] == FLAG:
             self.player_board[cell_choice[0], cell_choice[1]] = UNEXPLORED
             self.flag_poses.remove(cell_choice)
-        else:
-            print("Wrong action or cell choice!")
+        # else:
+            # print("Wrong action or cell choice!")
 
         can_win = True
 
         for mine in self.mine_poses:
-            if mine not in self.flag_poses:
+            # if mine not in self.flag_poses:
+            #     can_win = False
+            #     break
+            if mine not in self.unexplored_poses or len(self.mine_poses) != len(self.unexplored_poses):
+                print(len(self.mine_poses), len(self.unexplored_poses))
                 can_win = False
-                break
-            if mine in self.unexplored_poses and len(self.mine_poses) == len(self.unexplored_poses):
                 break
 
         if can_win:
             print("You won!!!\n")
             self.end_game = True
             return
-
-
-game = Game((4, 4), 4)
-
-while not game.end_game:
-    # print(game.num_of_left_mines())
-    game.print_board(game.player_board)
-    game.do_action()
-    # game.print_board(game.game_board)
-    # game.print_board(game.nums_board)
-
-game.reveal_player_board()

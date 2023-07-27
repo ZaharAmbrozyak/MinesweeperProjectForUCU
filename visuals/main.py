@@ -8,6 +8,7 @@ from icon import Icon
 from display import Display
 from pygame.locals import *
 import numpy as np
+import game_logic as gl
 
 
 def _get_number_buttons_x(game_settings: Settings, button_width: int) -> int:
@@ -56,8 +57,7 @@ def _create_field(game_settings: Settings, screen: pygame.surface.Surface,
     buttons.add(button)
 
 
-def create_fields(game_settings: Settings, screen: pygame.surface.Surface, buttons: Group,
-                  array_2d: np.array) -> None:
+def create_fields(game_settings: Settings, screen: pygame.surface.Surface, buttons: Group) -> None:
     """
         Створює ігрове поле завдяки двох for-циклів.
         Використовує допоміжну функцію _create_button
@@ -70,10 +70,28 @@ def create_fields(game_settings: Settings, screen: pygame.surface.Surface, butto
     number_rows = _get_number_rows(game_settings, button.rect.height)
 
     # Створюєм ришітку кнопок - ігрове поле
-    for button_number in range(0, number_buttons_x):
-        for row_number in range(0, number_rows):
+    for button_number in range(number_buttons_x):
+        for row_number in range(number_rows):
             _create_field(game_settings, screen, buttons, button_number,
-                          row_number, array_2d[button_number, row_number])
+                          row_number, '0')
+
+
+def change_fields(game_settings: Settings, screen: pygame.surface.Surface, buttons: Group, array_2d: np.ndarray) -> None:
+    """
+        Створює ігрове поле завдяки двох for-циклів.
+        Використовує допоміжну функцію _create_button
+    """
+    # Екземпляр кнопки
+    button = Button(game_settings, screen)
+
+    # Прораховуєм кількість кнопок в одному рядку і саму кількість рядків
+    number_buttons_x = _get_number_buttons_x(game_settings, button.rect.width)
+    number_rows = _get_number_rows(game_settings, button.rect.height)
+
+    # Екземпляр кнопки
+    for x in range(0, array_2d.shape[0]):
+        for y in range(0, array_2d.shape[1]):
+            buttons.sprites()[y + x * array_2d.shape[1]].change_image(array_2d[x, y])
 
 
 def _button_keydown(event, buttons: Group, game_settings: Settings, mines_display=None) -> tuple:
@@ -92,7 +110,8 @@ def _button_keydown(event, buttons: Group, game_settings: Settings, mines_displa
                 else:
                     pygame.mixer.Sound.play(game_settings.click_sound)
                     pygame.mixer.music.stop()
-                return button.get_coords(), 'o'
+                coords = button.get_coords()
+                return (coords[1], coords[0]), 'o'
 
             elif event.button == 3:
                 if not button.is_revealed:
@@ -101,14 +120,16 @@ def _button_keydown(event, buttons: Group, game_settings: Settings, mines_displa
                         pygame.mixer.music.stop()
                         mines_display.display_plus_one()
                         button.change_image('default')
-                        return button.get_coords(), 'r'
+                        coords = button.get_coords()
+                        return (coords[1], coords[0]), 'r'
 
                     elif mines_display.got_mines():
                         pygame.mixer.Sound.play(game_settings.flag_sound)
                         pygame.mixer.music.stop()
                         mines_display.display_minus_one()
                         button.change_image('flag')
-                        return button.get_coords(), 'f'
+                        coords = button.get_coords()
+                        return (coords[1], coords[0]), 'f'
 
 
 def buttons_hover(buttons: Group):
@@ -135,18 +156,20 @@ def event_handler(buttons: Group, game_settings: Settings, mines_display: Displa
                 exit()
 
 
-def run_game(array_2d: np.array) -> None:
+def run_game(game: gl.Game) -> None:
     """
         Головна функція гри.
     """
     # Оптимізовуєм звук гри
     pygame.mixer.pre_init(44100, 16, 2, 4096)
 
+
+
     # Ініціалізація pygame
     pygame.init()
 
     # Створення об'єкту налаштувань гри
-    game_settings = Settings(*array_2d.shape)
+    game_settings = Settings(game.size[0], game.size[1])
 
     # Налаштовування вікна гри
     environ['SDL_VIDEO_CENTERED'] = '1'
@@ -177,17 +200,26 @@ def run_game(array_2d: np.array) -> None:
         Icon('images/mine_32px.png', screen, game_settings, mines_display.rect1.x - 40, mines_display.rect1.y))
 
     # Створення ігрового поля
-    create_fields(game_settings, screen, buttons, array_2d)
+    create_fields(game_settings, screen, buttons)
 
     # Заповнюєм екран суцільним кольором
     screen.fill(game_settings.bg_color)
-    event_result = 1
     # Головний цикл
     while 1:
         # Обробник подій
+        if game.end_game:
+            print("Game ended!")
+            break
         event_result = event_handler(buttons, game_settings, mines_display)
         if event_result:
-            print(event_result)
+            game.do_action(event_result[0], event_result[1])
+            # print(game.player_board)
+            # if event_result[1] == 'o' and first_click:
+            #     game.setup(event_result[0])
+            change_fields(game_settings, screen, buttons, game.player_board)
+                # print(game.nums_board)
+                # first_click = False
+
         # Збільшуєм час якщо frame_count кратне frame_rate
         if game_settings.frame_count % game_settings.frame_rate == 0:
             clock_display.display_plus_one()
@@ -209,12 +241,17 @@ def run_game(array_2d: np.array) -> None:
 
 
 # Запуск гри
-# if __name__ == '__main__':
-    run_game(np.array([['mine', 'mine', 'mine', 'mine', '1', '5', '2', 'mine'],
-                       ['1', '5', '2', 'mine', '1', '5', '2', 'mine'],
-                       ['3', '1', '4', 'mine', '1', '5', '2', 'mine'],
-                       ['1', '6', '0', 'mine', '1', '5', '2', 'mine'],
-                       ['1', '6', '0', 'mine', '1', '5', '2', 'mine'],
-                       ['1', '6', '0', 'mine', '1', '5', '2', 'mine'],
-                       ['1', '6', '0', 'mine', '1', '5', '2', 'mine'],
-                       ['1', '6', '0', 'mine', '1', '5', '2', 'mine'],]))
+if __name__ == '__main__':
+    game_instance = gl.Game((10, 8), 10)
+
+    # while not game.end_game:
+        # print(game.num_of_left_mines())
+        # game.print_board(game.player_board)
+        # game.do_action()
+        # game.print_board(game.game_board)
+        # game.print_board(game.nums_board)
+
+    # game.reveal_player_board()
+
+    run_game(game_instance)
+
